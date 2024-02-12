@@ -42,3 +42,5 @@ ibm-watson-machine-learning>=1.0.327
 langchain
 langchain-experimental
 pymongo
+sentence-transformers
+chromadb
