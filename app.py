@@ -8,7 +8,8 @@ from okta_helper import (
   reset_okta_user_mfa_factor_by_id,
   is_admin, 
   is_app_owner,
-  revoke_okta_user_token
+  revoke_okta_user_token,
+  get_okta_user_token
 )
 from constants import UserRiskPercentage
 from decorators import validate_access_token
@@ -128,6 +129,28 @@ def revoke_user_token():
   return {
       'status': 'failed',
       'message': "Failed to revoke user's access token"
+  }, 500
+
+@app.post('/api/tokens')
+def get_user_token():
+  req_body = request.json
+  auth_code = req_body.get('Code')
+  # print(auth_code)
+  res, status_code = get_okta_user_token(auth_code)
+  # print('tokens :: ', res)
+  access_token: dict = res.get('access_token')
+  # print('access_token : ', access_token)
+  if status_code == 200:
+    return {
+        'status': 'success',
+        'message': "Successfully get user's access token.",
+        'token_type': res.get('token_type'),
+        'access_token': access_token,
+        'id_token': res.get('id_token')
+    }, 200
+  return {
+      'status': 'failed',
+      'message': "Failed to get user's access token"
   }, 500
 
 @app.route('/ask_logs/',methods=['POST'])

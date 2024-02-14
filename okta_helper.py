@@ -155,3 +155,23 @@ def revoke_okta_user_token(access_token: str):
   )
   return res.status_code
 
+def get_okta_user_token(auth_code: str):
+  client_creds = base64.b64encode(
+      f"{OKTA_HELPDESK_CLIENT_ID}:{OKTA_HELPDESK_CLIENT_SECRET}".encode('ascii')).decode("ascii")
+
+  res = requests.post(
+      f"https://{OKTA_DOMAIN_URL}/oauth2/v1/token",
+      headers={
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': f"Basic {client_creds}"
+      },
+      data={
+          'grant_type':'authorization_code',
+          'code': {auth_code},
+          'redirect_uri': f'http://localhost:3000/callback'
+      }
+  )
+
+  return res.json(), res.status_code
+
