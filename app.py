@@ -9,7 +9,8 @@ from okta_helper import (
   is_admin, 
   is_app_owner,
   revoke_okta_user_token,
-  get_okta_user_token
+  get_okta_user_token,
+  get_okta_userinfo
 )
 from constants import UserRiskPercentage
 from decorators import validate_access_token
@@ -36,7 +37,7 @@ def get_user(username: str):
   # Check if user if admin or app-owner and set risk % accordingly
   risk_percentage = UserRiskPercentage.DEFAULT.value
   risk_reason = "Low risk user"
-  if is_admin(username):
+  if is_admin(userinfo.get('id')):
     risk_percentage = UserRiskPercentage.ADMIN.value
     risk_reason = 'Privileged user'
   elif is_app_owner(username):
@@ -164,4 +165,38 @@ def ask_logss():
     'status':'Success',
     'result': ans
   },200
+
+@app.get('/api/userinfo')
+@validate_access_token
+def get_Current_user_info():
+  '''
+  Fetch Okta user information by provided username.
+  '''
+  # Fetch user using Okta admin API
+  userinfo, status_code = get_okta_userinfo()
+  if  status_code != 200:
+    return {
+      'status': 'failed',
+      'message': 'Something went wrong, failed to fetch user details'
+    }, status_code
+  profile: dict = userinfo.get('profile')
+
+  print(userinfo)
+
+  if is_admin(userinfo.get('id')):
+    return {
+      'role': 'ADMIN',
+      "username": profile.get('firstName') + ' ' + profile.get('lastName'),
+      "user_id": userinfo.get('id'),
+      "email": profile.get('login'),
+    }
+  else:
+    return {
+      'role': 'USER',
+      "username": profile.get('firstName') + ' ' + profile.get('lastName'),
+      "user_id": userinfo.get('id'),
+      "email": profile.get('login'),
+    }
+
+
   

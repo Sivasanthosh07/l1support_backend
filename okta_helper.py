@@ -99,22 +99,20 @@ def reset_okta_user_mfa_factor_by_id(username: str, factorid: str) -> int:
   )
   return res.status_code
 
-def is_admin(username: str) -> bool:
-  # Fetch admin group members
+def is_admin(user_id: str) -> bool:
+
   res =  requests.get(
-    f"https://{OKTA_DOMAIN_URL}/api/v1/groups/{OKTA_ADMIN_GROUP_ID}/users",
-    headers={
-        # 'Authorization': f"SSWS {OKTA_API_TOKEN}"
-        "Authorization": request.headers.get('Authorization')
-    }
+  f"https://{OKTA_DOMAIN_URL}/api/v1/users/{user_id}/roles",
+  headers={
+      'Authorization': f"SSWS {OKTA_API_TOKEN}"
+      # "Authorization": request.headers.get('Authorization')
+  }
   )
   if res.status_code == 200:
-    group_members: list[dict] = res.json()
-    for member in group_members:
-      member_profile = member.get('profile')
-      if member_profile.get('login') == username:
-        return True
-    return False
+    if len(res.json()):
+      return True
+    else:
+      return False
   else:
     logging.warning(f"is_admin():: Response status: {res.status_code}")
     return False
@@ -175,3 +173,14 @@ def get_okta_user_token(auth_code: str):
 
   return res.json(), res.status_code
 
+def get_okta_userinfo() -> (list[dict], int):
+
+  res =  requests.get(
+    f"https://{OKTA_DOMAIN_URL}/api/v1/users/me",
+    headers={
+        "Authorization": request.headers.get('Authorization')
+     
+    }
+  )
+  # print(res)
+  return res.json(), res.status_code
