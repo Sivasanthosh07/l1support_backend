@@ -44,3 +44,6 @@ langchain-experimental
 pymongo
 sentence-transformers
 chromadb
+langchain_experimental
+langchain_openai
+langchain-community

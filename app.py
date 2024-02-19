@@ -158,8 +158,10 @@ def get_user_token():
 def ask_logss():
   req_body=request.json
   print(req_body)
+  username=request.args.get("username")
+  print(username)
   question=req_body.get('question')
-  ans=ask_logs("filtered csv bot",question)
+  ans=ask_logs(username,question)
   print(ans)
   return {
     'status':'Success',

@@ -2,6 +2,8 @@ import requests
 from flask import request
 from os import environ
 import base64
+import pandas as pd
+import json
 from constants import OKTA_ADMIN_GROUP_ID, OKTA_APP_GROUP_ID, USER_TOKEN_TYPE_HINT
 OKTA_API_TOKEN = environ.get('OKTA_API_TOKEN')
 OKTA_DOMAIN_URL = environ.get('OKTA_DOMAIN_URL')
@@ -184,3 +186,26 @@ def get_okta_userinfo() -> (list[dict], int):
   )
   # print(res)
   return res.json(), res.status_code
+
+
+
+def get_okta_logs(user_id:str):
+  url = "https://"+OKTA_DOMAIN_URL+"/api/v1/logs?q="+user_id+"?"
+  payload = {}
+  headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Authorization': 'SSWS '+OKTA_API_TOKEN+''
+  }
+  response = requests.request("GET", url, headers=headers, data=payload)
+  data=json.loads(response.text)
+  df = pd.json_normalize(data)
+  df = df[df['actor.alternateId'] == user_id]
+  df=df.tail(30)
+  nan_count = df.isna().sum()
+  none_count = df.isin([None]).sum()
+  total_nan_none_count = nan_count + none_count
+  # Drop columns where the total count of NaN or None values exceeds 26
+  columns_to_drop = total_nan_none_count[total_nan_none_count > 26].index
+  df.drop(columns=columns_to_drop,inplace=True)
+  return df
