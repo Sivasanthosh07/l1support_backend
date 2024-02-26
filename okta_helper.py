@@ -110,6 +110,7 @@ def is_admin(user_id: str) -> bool:
       # "Authorization": request.headers.get('Authorization')
   }
   )
+
   if res.status_code == 200:
     if len(res.json()):
       return True
@@ -119,6 +120,34 @@ def is_admin(user_id: str) -> bool:
     logging.warning(f"is_admin():: Response status: {res.status_code}")
     return False
 
+def calculate_adaptive_risk(user_id: str) -> (dict, int):
+
+  res = requests.get(
+  f'https://{OKTA_DOMAIN_URL}/api/v1/logs?filter=debugContext.debugData.risk co "level=HIGH" and actor.id eq "{user_id}"',
+  headers={
+      "Authorization": request.headers.get('Authorization')
+  }
+  )
+
+  if res.status_code == 200 and len(res.json()) == 0:
+    res = requests.get(
+    f'https://{OKTA_DOMAIN_URL}/api/v1/logs?filter=debugContext.debugData.risk co "level=MEDIUM" and actor.id eq "{user_id}"',
+    headers={
+        "Authorization": request.headers.get('Authorization')
+    }
+    )
+  
+  if res.status_code == 200 and len(res.json()):
+    adaptive_risk = get_adaptive_risk(res.json().pop())
+    if adaptive_risk.get('level') == 'HIGH' or adaptive_risk.get('level') == 'MEDIUM':
+      return adaptive_risk, res.status_code
+    else:
+      return None, res.status_code
+  else:
+    logging.warning(f"adaptive_risk():: Response status: {res.status_code}")
+    return None, res.status_code
+
+   
 def is_app_owner(username: str) -> bool:
   # Fetch app group members
   res =  requests.get(
@@ -176,7 +205,6 @@ def get_okta_user_token(auth_code: str):
   return res.json(), res.status_code
 
 def get_okta_userinfo() -> (list[dict], int):
-
   res =  requests.get(
     f"https://{OKTA_DOMAIN_URL}/api/v1/users/me",
     headers={
@@ -186,8 +214,6 @@ def get_okta_userinfo() -> (list[dict], int):
   )
   # print(res)
   return res.json(), res.status_code
-
-
 
 def get_okta_logs(user_id:str):
   url = "https://"+OKTA_DOMAIN_URL+"/api/v1/logs?q="+user_id+"?"
@@ -209,3 +235,22 @@ def get_okta_logs(user_id:str):
   columns_to_drop = total_nan_none_count[total_nan_none_count > 26].index
   df.drop(columns=columns_to_drop,inplace=True)
   return df
+
+def get_adaptive_risk(logs: dict) -> dict:
+  debugContext: dict = logs.get('debugContext')
+  debugData: dict = debugContext.get('debugData')
+  risk: dict = debugData.get('risk')
+  adaptive_risk: dict = string_to_dict(risk)
+  return adaptive_risk
+
+def string_to_dict(input_string):
+  input_string = input_string.strip('{}')
+  pairs = input_string.split(',')
+  result = {}
+  for pair in pairs:
+      key, value = pair.split('=')
+      key = key.strip()
+      value = value.strip()
+      result[key] = value
+
+  return result

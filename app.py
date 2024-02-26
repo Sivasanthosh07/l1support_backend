@@ -10,7 +10,8 @@ from okta_helper import (
   is_app_owner,
   revoke_okta_user_token,
   get_okta_user_token,
-  get_okta_userinfo
+  get_okta_userinfo,
+  calculate_adaptive_risk
 )
 from constants import UserRiskPercentage
 from decorators import validate_access_token
@@ -33,11 +34,20 @@ def get_user(username: str):
       'message': 'Something went wrong, failed to fetch user details'
     }, status_code
   profile: dict = userinfo.get('profile')
+  
+  # Check if user has any adptive risk and set risk % accordingly
+  adaptive_risk, status = calculate_adaptive_risk(userinfo.get('id'))
 
   # Check if user if admin or app-owner and set risk % accordingly
   risk_percentage = UserRiskPercentage.DEFAULT.value
   risk_reason = "Low risk user"
-  if is_admin(userinfo.get('id')):
+  if adaptive_risk != None:
+    risk_reason = adaptive_risk.get('reasons')
+    if adaptive_risk.get('level') == 'HIGH':
+      risk_percentage = UserRiskPercentage.ADMIN.value      
+    elif adaptive_risk.get('level') == 'MEDIUM':
+      risk_percentage = UserRiskPercentage.APP_OWNER.value
+  elif is_admin(userinfo.get('id')):
     risk_percentage = UserRiskPercentage.ADMIN.value
     risk_reason = 'Privileged user'
   elif is_app_owner(username):
