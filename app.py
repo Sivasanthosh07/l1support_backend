@@ -44,7 +44,7 @@ def get_user(username: str):
   if adaptive_risk != None:
     risk_reason = adaptive_risk.get('reasons')
     if adaptive_risk.get('level') == 'HIGH':
-      risk_percentage = UserRiskPercentage.ADMIN.value      
+      risk_percentage = UserRiskPercentage.APP_OWNER.value      
     elif adaptive_risk.get('level') == 'MEDIUM':
       risk_percentage = UserRiskPercentage.APP_OWNER.value
   elif is_admin(userinfo.get('id')):
@@ -116,6 +116,7 @@ def get_user_enrolled_factors(username: str):
 @validate_access_token
 def reset_user_mfa(username: str, factorid: str):
   status = reset_okta_user_mfa_factor_by_id(username, factorid)
+  # print(status)
   if status == 204:
     return {
       'status': 'success',
