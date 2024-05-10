@@ -11,7 +11,8 @@ from okta_helper import (
   revoke_okta_user_token,
   get_okta_user_token,
   get_okta_userinfo,
-  calculate_adaptive_risk
+  calculate_adaptive_risk,
+  okta_user_mfa_push_factor_verify
 )
 from constants import UserRiskPercentage
 from decorators import validate_access_token
@@ -165,15 +166,40 @@ def get_user_token():
       'message': "Failed to get user's access token"
   }, 500
 
+@app.get('/api/v1/users/<username>/factors/<factorid>/transactions')
+def mfa_push_factor_verify(username: str, factorid: str):
+  output = okta_user_mfa_push_factor_verify(username, factorid)
+  status = output["status"]
+  factorResult = output["factorResult"]
+
+  if status == 200:
+    if factorResult == 'SUCCESS':
+      return {
+        'status': 'success',
+        'message': "Successfully verified push MFA factor.",
+        'factorResult': factorResult 
+      }
+    else:
+      return {
+        'status': 'failed',
+        'message': "Failed to verify push MFA factor.",
+        'factorResult': factorResult
+      }
+  return {
+      'status': 'failed',
+      'message': "Failed to verify a push MFA factor.",
+      'factorResult': factorResult
+    }
+
 @app.route('/ask_logs/',methods=['POST'])
 def ask_logss():
   req_body=request.json
-  print(req_body)
+  # print(req_body)
   username=request.args.get("username")
-  print(username)
+  # print(username)
   question=req_body.get('question')
   ans=ask_logs(username,question)
-  print(ans)
+  # print(ans)
   return {
     'status':'Success',
     'result': ans

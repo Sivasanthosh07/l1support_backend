@@ -3,6 +3,7 @@ from flask import request
 from os import environ
 import base64
 import pandas as pd
+import time
 import json
 from constants import OKTA_ADMIN_GROUP_ID, OKTA_APP_GROUP_ID, USER_TOKEN_TYPE_HINT
 OKTA_API_TOKEN = environ.get('OKTA_API_TOKEN')
@@ -100,6 +101,46 @@ def reset_okta_user_mfa_factor_by_id(username: str, factorid: str) -> int:
     }
   )
   return res.status_code
+
+def reset_okta_user_mfa_push_factor_challenge(username: str, factorid: str) -> int:
+  userinfo, _status_code = get_okta_user_by_login(username)
+  userid = userinfo.get('id')
+
+  res =  requests.post(
+    f"https://{OKTA_DOMAIN_URL}/api/v1/users/{userid}/factors/{factorid}/verify",
+    headers={
+      'Authorization': f"SSWS {OKTA_API_TOKEN}"
+        # "Authorization": request.headers.get('Authorization')
+    }
+  )
+  transactionid = res.json()["_links"]["poll"]["href"].split("/")[-1]
+
+  return {"status":res.status_code,
+          "transactionid":transactionid}
+
+def okta_user_mfa_push_factor_verify(username: str, factorid: str) -> int:
+  userinfo, _status_code = get_okta_user_by_login(username)
+  userid = userinfo.get('id')
+  transactionid = reset_okta_user_mfa_push_factor_challenge(username, factorid)["transactionid"]
+
+  for i in range(60):
+    time.sleep(1)
+    res =  requests.get(
+      f"https://{OKTA_DOMAIN_URL}/api/v1/users/{userid}/factors/{factorid}/transactions/{transactionid}",
+      headers={
+        'Authorization': f"SSWS {OKTA_API_TOKEN}"          
+      }
+    )
+    factorResult = res.json()["factorResult"]   
+    if (factorResult == "SUCCESS") or (factorResult == 'REJECTED'):
+      break
+    else:
+      factorResult = "TIMEOUT"
+
+  return {
+    "status":res.status_code,
+    "factorResult":factorResult
+    }
 
 def is_admin(user_id: str) -> bool:
 
